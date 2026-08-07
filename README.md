@@ -8,7 +8,7 @@ Currently features three heroes' worth of abilities — Tracer's Blink/Recall, S
 
 - **Engine:** Unity 6000.4.6f1
 - **Language:** C#
-- **UI:** Immediate-mode `OnGUI` (interim, see Planned Improvements)
+- **UI:** Immediate-mode `OnGUI`
 
 ## Features
 
