@@ -34,6 +34,23 @@ public class SombraTranslocator : MonoBehaviour
     private float cooldownTimer = 0f; //Counts down towards 0 before another beacon can be thrown
     private CharacterController playerController; //Optional, only used so the teleport doesn't fight a controller
 
+    // -- FOR UI -- 
+    public float CooldownRemaining
+    {
+        get {return cooldownTimer;}
+    }
+
+    public float CooldownDuration
+    {
+        get {return translocatorCooldown;}
+    }
+
+    public bool OnCooldown
+    {
+        get {return cooldownTimer > 0f || beaconActive;}
+    }
+    //-- FOR UI --
+
 
     IEnumerator throwBeacon()
     {
