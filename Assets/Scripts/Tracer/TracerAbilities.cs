@@ -38,7 +38,34 @@ public class TracerAbilities : MonoBehaviour
     private float recallCooldownTimer = 0f; //Counts down towards 0 before recall is allowed again
     private bool isRecalling = false; //Blocks blinking and saving while the rewind is playing
 
-    public bool IsRecalling { get { return isRecalling; } } //So other scripts can check without touching the rewind
+    // -- FOR BLINK UI --
+    public bool IsRecalling //So other scripts can check without touching the rewind
+    { 
+        get {return isRecalling; }
+    }
+    public bool IsBlinking
+    {
+        get {return isBlinking;}
+    }
+    public int BlinkCharges
+    {
+        get{return blinkCharges;}
+    }
+    // -- FOR BLINK UI --
+
+    // --FOR RECALL UI --
+    public float RecallCooldownRemaining //So other scripts can check
+    {
+        get {return recallCooldownTimer;}
+    }
+    public float RecallCooldownDuration
+    {
+        get {return recallCooldown;}
+    }
+    public bool OnRecallCooldown //Checks if we are mid cooldown or already recalling
+    {
+        get {return recallCooldownTimer > 0f || isRecalling;}
+    }
 
 
     IEnumerator performBlink(Vector3 blinkDirection)
