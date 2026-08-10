@@ -25,8 +25,17 @@ public class DvaBoosters : MonoBehaviour
     private float cooldownTimer = 0f; //Counts down towards 0 before boosters can be used again
     private CharacterController playerController; //Optional, only used so the flight moves her cleanly
 
-    public bool IsBoosting { get { return isBoosting; } } //So other scripts can check without touching the flight
-
+    public bool IsBoosting //So other scripts can check without touching the flight
+    { 
+        get { return isBoosting; } 
+    }
+    // -- FOR UI --
+    public float CooldownRemaining
+    {
+        get {return cooldownTimer;}
+    }
+    // -- FOR UI --
+    
 
     IEnumerator performBoosters()
     {
