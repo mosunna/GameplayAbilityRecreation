@@ -29,6 +29,12 @@ public class DvaBoosters : MonoBehaviour
     { 
         get { return isBoosting; } 
     }
+    // -- FOR UI --
+    public float CooldownRemaining
+    {
+        get {return cooldownTimer;}
+    }
+    // -- FOR UI --
     
 
     IEnumerator performBoosters()
