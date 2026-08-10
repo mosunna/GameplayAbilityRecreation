@@ -15,7 +15,15 @@ public class BlinkUIController : MonoBehaviour
 
     void Update()
     {
-        icon.color = ability.IsBlinking ? activeColor : readyColor;
+        if (ability.IsBlinking)
+        {
+            icon.color = activeColor;
+        }
+        else
+        {
+            icon.color = readyColor;
+        }
+
         chargesText.text = ability.BlinkCharges.ToString();
     }
 }

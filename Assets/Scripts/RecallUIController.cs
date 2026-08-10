@@ -2,10 +2,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class AbilityUIController : MonoBehaviour
+public class RecallUIController : MonoBehaviour
 {
     [Header("References")]
-    public SombraTranslocator ability;
+    public TracerAbilities ability;
     public Image icon;
     public TextMeshProUGUI cooldownText;
 
@@ -15,22 +15,21 @@ public class AbilityUIController : MonoBehaviour
 
     void Update()
     {
-        if (ability.OnCooldown)
+        if (ability.IsRecalling)
         {
             icon.color = activeColor;
-
-            if (ability.CooldownRemaining > 0f)
-            {
-                cooldownText.text = Mathf.Ceil(ability.CooldownRemaining).ToString();
-            }
-            else
-            {
-                cooldownText.text = "";
-            }
         }
         else
         {
             icon.color = readyColor;
+        }
+
+        if (ability.RecallCooldownRemaining > 0f)
+        {
+            cooldownText.text = Mathf.Ceil(ability.RecallCooldownRemaining).ToString();
+        }
+        else
+        {
             cooldownText.text = "";
         }
     }
