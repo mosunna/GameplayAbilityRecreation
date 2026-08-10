@@ -1,0 +1,2 @@
+# Exclude imported third-party packages from GitHub language stats
+Assets/TextMesh\ Pro/** linguist-vendored
