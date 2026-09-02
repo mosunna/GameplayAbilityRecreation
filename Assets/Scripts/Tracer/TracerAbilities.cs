@@ -10,6 +10,7 @@ public class TracerAbilities : MonoBehaviour
     public Transform player; //Who the abilities move around. Assign the player object in Unity
     public Camera playerPOV; //Used for the blink direction when she is standing still
     public MonoBehaviour movementScript; //Optional. Switched off during a recall so it can't move a disabled controller
+    public MonoBehaviour lookScript; //Optional reference to the mouse-look script. Disabled for the duration of performRecall() so it cannot call player.Rotate() while the coroutine is writing player.rotation each frame
 
     [Header("Blink Variables")]
     public float blinkDistance = 7f;
@@ -32,7 +33,17 @@ public class TracerAbilities : MonoBehaviour
     private float blinkRecoveryTimer = 0f; //Counts down towards 0 before another blink is allowed
     private bool isBlinking = false; //True while a blink coroutine is mid-flight
 
-    private Queue<Vector3> positionHistory; //Queue that saves a history of player position
+    //Combines the old positionHistory and cameraHistory queues into one entry type, so position and
+    //orientation are always sampled and dequeued together. forward is read from the player Transform
+    //(not the camera), which only rotates around the Y axis, so it's a flat Vector3 with no pitch
+    //component - interpolated with Vector3.Slerp instead of Quaternion.Slerp.
+    private struct MovementSnapshot
+    {
+        public Vector3 position; //player.position at the time this snapshot was recorded
+        public Vector3 forward; //player.forward at the time this snapshot was recorded
+    }
+
+    private Queue<MovementSnapshot> movementHistory; //FIFO queue of MovementSnapshot, enqueued in savePosition() every timeInterval seconds, capped at historyCapacity entries
     private float timer = 0f; //Timer keeping track of time as it passes
     private int historyCapacity; //How many entries 3 seconds of history actually works out to
     private float recallCooldownTimer = 0f; //Counts down towards 0 before recall is allowed again
@@ -40,7 +51,7 @@ public class TracerAbilities : MonoBehaviour
 
     // -- FOR BLINK UI --
     public bool IsRecalling //So other scripts can check without touching the rewind
-    { 
+    {
         get {return isRecalling; }
     }
     public bool IsBlinking
@@ -125,23 +136,24 @@ public class TracerAbilities : MonoBehaviour
     {
         isRecalling = true;
         recallCooldownTimer = recallCooldown; //Cooldown runs from the moment it fires, so the rewind counts towards it
+        
+        //Copies the recorded history into an array and adds the current position to the end of the array. Needed for the last index being where the player is right now
+        MovementSnapshot[] savedStates = movementHistory.ToArray();
+        MovementSnapshot[] rewindPath = new MovementSnapshot[savedStates.Length + 1];
+        savedStates.CopyTo(rewindPath, 0);
+        rewindPath[rewindPath.Length - 1] = new MovementSnapshot { position = player.position, forward = player.forward };
 
-        //Oldest saved position sits at index 0, newest at the end. Where she is standing right now
-        //isn't in the queue yet, so it gets tacked on as the final point of the path
-        Vector3[] savedPositions = positionHistory.ToArray();
-        Vector3[] rewindPath = new Vector3[savedPositions.Length + 1];
-        savedPositions.CopyTo(rewindPath, 0);
-        rewindPath[rewindPath.Length - 1] = player.position;
-
-        //The character script has to go quiet first, otherwise its own Update keeps calling Move on a
-        //controller this coroutine is about to switch off
+        //Disables the Character movement script to prevent player from changing the camera position during recall
         if(movementScript != null)
         {
             movementScript.enabled = false;
         }
 
-        //The rewind retraces ground she already stood on, so collision is turned off to stop the
-        //controller from catching on geometry (and to allow the position to be set directly)
+        if(lookScript != null)
+        {
+            lookScript.enabled = false;
+        }
+
         if(controller != null)
         {
             controller.enabled = false;
@@ -153,23 +165,33 @@ public class TracerAbilities : MonoBehaviour
         {
             float progress = elapsed / recallPlaybackDuration; //0 = current position, 1 = 3 seconds ago
 
-            //Walking the path backwards. Lerping between neighbouring entries keeps the rewind smooth
-            //instead of snapping between the 300 saved points
-            float samplePoint = (1f - progress) * (rewindPath.Length - 1);
+            //Lerping between entries that aren't exactly a whole integer (Ex: rewindPath[5.6] cannot exxist and is broken up below this line
+
+            float samplePoint = (1f - progress) * (rewindPath.Length - 1); //Converting a continuous position into two indices 
             int lowerIndex = Mathf.FloorToInt(samplePoint);
             int upperIndex = Mathf.Min(lowerIndex + 1, rewindPath.Length - 1);
+            float t = samplePoint - lowerIndex; //How far between two snapshots we are in elasped time
 
-            player.position = Vector3.Lerp(rewindPath[lowerIndex], rewindPath[upperIndex], samplePoint - lowerIndex);
+            player.position = Vector3.Lerp(rewindPath[lowerIndex].position, rewindPath[upperIndex].position, t);
+
+            Vector3 blendedForward = Vector3.Slerp(rewindPath[lowerIndex].forward, rewindPath[upperIndex].forward, t);
+            player.rotation = Quaternion.LookRotation(blendedForward, Vector3.up);
 
             elapsed += Time.deltaTime;
             yield return null; // Waiting a frame and looping
         }
 
-        player.position = rewindPath[0]; //Landing exactly on the oldest position rather than near it
+        player.position = rewindPath[0].position; //Assignment to the exact oldest value
+        player.rotation = Quaternion.LookRotation(rewindPath[0].forward, Vector3.up); //Using the oldest recorded forward vector
 
         if(controller != null)
         {
             controller.enabled = true;
+        }
+
+        if(lookScript != null)
+        {
+            lookScript.enabled = true;
         }
 
         if(movementScript != null)
@@ -177,16 +199,16 @@ public class TracerAbilities : MonoBehaviour
             movementScript.enabled = true;
         }
 
-        positionHistory.Clear(); //History belongs to the old timeline, so it starts fresh from here
+        movementHistory.Clear(); //Empties the queue so the next recall only interpolates through snapshots recorded after this rewind ends
         timer = 0f;
         isRecalling = false;
 
-        Debug.Log("Recall finished at " + rewindPath[0]);
+        Debug.Log("Recall finished at " + rewindPath[0].position);
     }
 
     void RecallInputCheck()
     {
-        if(Input.GetKeyDown(KeyCode.E) && positionHistory.Count > 0 && recallCooldownTimer <= 0f)
+        if(Input.GetKeyDown(KeyCode.E) && movementHistory.Count > 0 && recallCooldownTimer <= 0f)
         {
             StartCoroutine(performRecall());
         }
@@ -229,13 +251,13 @@ public class TracerAbilities : MonoBehaviour
         }
         else
         {
-            positionHistory.Enqueue(player.position);
+            movementHistory.Enqueue(new MovementSnapshot { position = player.position, forward = player.forward });
             timer = 0;
         }
 
-        if(positionHistory.Count > historyCapacity)
+        if(movementHistory.Count > historyCapacity)
         {
-            positionHistory.Dequeue();
+            movementHistory.Dequeue();
         }
     }
 
@@ -250,8 +272,8 @@ public class TracerAbilities : MonoBehaviour
         }
 
         controller = player.GetComponent<CharacterController>(); //Optional, a plain Transform works fine too
-        historyCapacity = Mathf.CeilToInt(recallDuration / timeInterval); //3s / 0.01s = 300 saved positions
-        positionHistory = new Queue<Vector3>();
+        historyCapacity = Mathf.CeilToInt(recallDuration / timeInterval); //3s / 0.01s = 300 saved snapshots
+        movementHistory = new Queue<MovementSnapshot>();
         blinkCharges = maxBlinkCharges; //Starting the game with a full set of blinks
     }
 

@@ -1,2 +1,12 @@
-# Exclude imported third-party packages from GitHub language stats
-Assets/TextMesh\ Pro/** linguist-vendored
+# Exclude Unity's imported TextMesh Pro resources from GitHub language stats.
+# Quotes are required because the path contains a space -- backslash escapes
+# are NOT supported in .gitattributes and make git ignore the whole line.
+"Assets/TextMesh Pro/**" linguist-vendored
+
+# Belt and braces: never count shader sources as project languages.
+*.shader linguist-vendored
+*.shadergraph linguist-vendored
+*.shadersubgraph linguist-vendored
+*.hlsl linguist-vendored
+*.cginc linguist-vendored
+*.compute linguist-vendored
