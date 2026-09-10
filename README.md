@@ -1,6 +1,7 @@
 # GameplayAbilityRecreation
 
 A sandbox project recreating select Overwatch hero abilities in Unity using C#, built to study and reproduce third-person ability logic (steering, collision prediction, state rewind) on top of a from-scratch first-person controller.
+Link to showcase video: https://youtu.be/rpYzvYaCtMc 
 
 Currently features three heroes' worth of abilities: Tracer's Blink/Recall, Sombra's Translocator, and D.Va's Boosters.
 
